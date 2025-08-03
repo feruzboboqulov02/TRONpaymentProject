@@ -5,27 +5,36 @@ const USDT_CONTRACT = 'TXLAQ63Xg1NAzckPwKHvzw7CSEmLMEqcdj';
 
 async function checkWalletsForPayments() {
   const tronWeb = await tronWebPromise;
-
   const now = new Date();
-  const wallets = await Wallet.find({
-    status: 'pending',
-    ttl: { $gt: now }
-  });
+
+  // Берём все активные кошельки
+  const wallets = await Wallet.find({ status: 'pending', ttl: { $gt: now } });
 
   for (const wallet of wallets) {
     try {
-      const contract = await tronWeb.contract().at(USDT_CONTRACT);
-      const balance = await contract.balanceOf(wallet.address).call();
-      const usdtBalance = Number(balance) / 1_000_000;
+      // Получаем последние транзакции по адресу
+      const transactions = await tronWeb.trx.getTransactionsRelated(wallet.address, 'to');
 
-      if (usdtBalance > 0) {
-        console.log(`Payment detected for ${wallet.address}: ${usdtBalance} USDT`);
+      for (const tx of transactions) {
+        // 1️⃣ Проверяем успешную транзакцию
+        if (!tx.ret || tx.ret[0].contractRet !== 'SUCCESS') continue;
 
+        // 2️⃣ Ищем вызов смарт-контракта
+        const contractData = tx.raw_data?.contract[0];
+        if (!contractData || contractData.type !== 'TriggerSmartContract') continue;
+
+        // 3️⃣ Проверяем, что это USDT контракт
+        const value = contractData.parameter.value;
+        if (value.contract_address?.toUpperCase() !== USDT_CONTRACT.toUpperCase()) continue;
+
+        // 4️⃣ Конвертируем сумму в USDT
+        const amount = Number(value.amount) / 1_000_000;
+
+        // 5️⃣ Помечаем как оплаченный
+        console.log(`Оплата ${amount} USDT для ${wallet.address}`);
         wallet.status = 'paid';
-        wallet.usdtReceived = usdtBalance;
+        wallet.usdtReceived = amount;
         await wallet.save();
-
-        
       }
     } catch (err) {
       console.error(`Error checking wallet ${wallet.address}:`, err.message);
