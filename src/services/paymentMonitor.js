@@ -3,46 +3,46 @@ import tronWebPromise from '../config/tron.js';
 import { sendPaymentNotification } from './emailService.js';
 
 const USDT_CONTRACT = 'TXLAQ63Xg1NAzckPwKHvzw7CSEmLMEqcdj';
+const TRONGRID_API = 'https://api.trongrid.io/v1/accounts'; 
 
 async function checkWalletsForPayments() {
   const tronWeb = await tronWebPromise;
   const now = new Date();
 
-  // Берём все активные кошельки
+  
   const wallets = await Wallet.find({ status: 'pending', ttl: { $gt: now } });
 
   for (const wallet of wallets) {
     try {
-      const transactions = await tronWeb.trx.getTransactionsRelated(wallet.address, 'to');
+      
+      const url = `${TRONGRID_API}/${wallet.address}/transactions/trc20?limit=20&contract_address=${USDT_CONTRACT}`;
+      const response = await fetch(url);
+      const data = await response.json();
 
-      for (const tx of transactions) {
-        // 1️ Проверяем успешную транзакцию
-        if (!tx.ret || tx.ret[0].contractRet !== 'SUCCESS') continue;
+      if (!data.data || data.data.length === 0) continue;
 
-        // 2️ Ищем вызов смарт-контракта
-        const contractData = tx.raw_data?.contract[0];
-        if (!contractData || contractData.type !== 'TriggerSmartContract') continue;
+      for (const tx of data.data) {
+        
+        if (!tx.confirmed) continue;
 
-        // 3️ Проверяем, что это USDT контракт
-        const value = contractData.parameter.value;
-        if (!value.contract_address || value.contract_address.toUpperCase() !== USDT_CONTRACT.toUpperCase()) continue;
+        
+        if (tx.to !== wallet.address) continue;
 
-        // 4️ Конвертируем сумму в USDT
-        const amount = Number(value.amount) / 1_000_000;
+        
+        const amount = Number(tx.value) / 1_000_000;
 
-        // 5️ Проверяем сумму (если нет expectedAmount — уберите условие)
+        
         if (!wallet.expectedAmount || amount >= wallet.expectedAmount) {
           console.log(`💰 Оплата ${amount} USDT для ${wallet.address}`);
-          
           wallet.status = 'paid';
           wallet.usdtReceived = amount;
           await wallet.save();
 
-          // Отправляем email
+          
           await sendPaymentNotification(wallet.orderId, wallet.address, amount);
-          break; // Чтобы не проверять следующие транзакции для этого кошелька
+          break; 
         } else {
-          console.log(`⚠ Поступил платеж ${amount} USDT для ${wallet.address}, но требуется ${wallet.expectedAmount}`);
+          console.log(`Платёж ${amount} USDT для ${wallet.address}, но требуется ${wallet.expectedAmount}`);
         }
       }
     } catch (err) {
@@ -53,5 +53,5 @@ async function checkWalletsForPayments() {
 
 export function startPaymentMonitor() {
   console.log('Payment monitor started...');
-  setInterval(checkWalletsForPayments, 30_000);
+  setInterval(checkWalletsForPayments, 30_000); 
 }
