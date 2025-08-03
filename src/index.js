@@ -1,7 +1,6 @@
 import express from 'express';
 import dotenv from 'dotenv';
 import tronWebPromise from './config/tron.js';
-const { startPaymentMonitor } = require('./services/paymentMonitor.js');
 import {startPaymentMonitor} from './services/paymentMonitor.js';
 
 dotenv.config();
