@@ -4,7 +4,6 @@ import { generateWallet } from '../services/walletService.js';
 
 const router = express.Router();
 
-// POST /wallets/create
 router.post('/create', async (req, res) => {
   try {
     const { orderId, ttlMinutes = 60 } = req.body;
@@ -20,14 +19,19 @@ router.post('/create', async (req, res) => {
       ttl
     });
 
-    res.json({ success: true, wallet });
+    res.json({
+      orderId: wallet.orderId,
+      paymentAddress: wallet.address,
+      message: 'Send USDT (TRC-20) to this address',
+      ttl: wallet.ttl
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to create wallet' });
   }
 });
 
-// GET /wallets/status/:orderId
+
 router.get('/status/:orderId', async (req, res) => {
   try {
     const { orderId } = req.params;
@@ -49,4 +53,4 @@ router.get('/status/:orderId', async (req, res) => {
   }
 });
 
-export default router; 
+export default router;
