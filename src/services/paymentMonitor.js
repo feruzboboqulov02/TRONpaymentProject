@@ -34,6 +34,6 @@ async function checkWalletsForPayments() {
 }
 
 export function startPaymentMonitor() {
-  console.log('⏳ Payment monitor started...');
+  console.log('Payment monitor started...');
   setInterval(checkWalletsForPayments, 30_000);
 }
