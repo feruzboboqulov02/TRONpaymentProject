@@ -1,5 +1,6 @@
 import Wallet from '../models/wallet.js';
 import tronWebPromise from '../config/tron.js';
+import { sendPaymentNotification } from './emailService.js';
 
 const USDT_CONTRACT = 'TXLAQ63Xg1NAzckPwKHvzw7CSEmLMEqcdj';
 
@@ -12,7 +13,6 @@ async function checkWalletsForPayments() {
 
   for (const wallet of wallets) {
     try {
-      // Получаем последние транзакции по адресу
       const transactions = await tronWeb.trx.getTransactionsRelated(wallet.address, 'to');
 
       for (const tx of transactions) {
@@ -25,25 +25,25 @@ async function checkWalletsForPayments() {
 
         // 3️ Проверяем, что это USDT контракт
         const value = contractData.parameter.value;
-        if (value.contract_address?.toUpperCase() !== USDT_CONTRACT.toUpperCase()) continue;
+        if (!value.contract_address || value.contract_address.toUpperCase() !== USDT_CONTRACT.toUpperCase()) continue;
 
-        // 4️Конвертируем сумму в USDT
+        // 4️ Конвертируем сумму в USDT
         const amount = Number(value.amount) / 1_000_000;
 
-        if (amount >= wallet.expectedAmount) {
-            console.log(`Оплата ${amount} USDT для ${wallet.address}`);
-            wallet.status = 'paid';
-            wallet.usdtReceived = amount;
-            await wallet.save();
-        } else {
-            console.log(`Поступил платеж ${amount} USDT для ${wallet.address}, но требуется ${wallet.expectedAmount}`);
-        }
+        // 5️ Проверяем сумму (если нет expectedAmount — уберите условие)
+        if (!wallet.expectedAmount || amount >= wallet.expectedAmount) {
+          console.log(`💰 Оплата ${amount} USDT для ${wallet.address}`);
+          
+          wallet.status = 'paid';
+          wallet.usdtReceived = amount;
+          await wallet.save();
 
-        // 5Помечаем как оплаченный
-        console.log(`Оплата ${amount} USDT для ${wallet.address}`);
-        wallet.status = 'paid';
-        wallet.usdtReceived = amount;
-        await wallet.save();
+          // Отправляем email
+          await sendPaymentNotification(wallet.orderId, wallet.address, amount);
+          break; // Чтобы не проверять следующие транзакции для этого кошелька
+        } else {
+          console.log(`⚠ Поступил платеж ${amount} USDT для ${wallet.address}, но требуется ${wallet.expectedAmount}`);
+        }
       }
     } catch (err) {
       console.error(`Error checking wallet ${wallet.address}:`, err.message);
