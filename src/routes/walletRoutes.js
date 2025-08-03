@@ -1,7 +1,8 @@
-const express = require('express');
+import express from 'express';
+import Wallet from '../models/wallet.js';
+import { generateWallet } from '../services/walletService.js';
+
 const router = express.Router();
-const Wallet = require('../models/Wallet.js');
-const { generateWallet } = require('../services/walletService');
 
 // POST /wallets/create
 router.post('/create', async (req, res) => {
@@ -26,4 +27,26 @@ router.post('/create', async (req, res) => {
   }
 });
 
-module.exports = router;
+// GET /wallets/status/:orderId
+router.get('/status/:orderId', async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const wallet = await Wallet.findOne({ orderId }).lean();
+
+    if (!wallet) return res.status(404).json({ error: 'Wallet not found' });
+
+    res.json({
+      orderId: wallet.orderId,
+      address: wallet.address,
+      status: wallet.status,
+      usdtReceived: wallet.usdtReceived,
+      ttl: wallet.ttl,
+      createdAt: wallet.createdAt
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to get wallet status' });
+  }
+});
+
+export default router; 

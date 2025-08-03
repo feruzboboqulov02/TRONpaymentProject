@@ -1,4 +1,4 @@
-import Wallet from '../models/Wallet.js';
+import Wallet from '../models/wallet.js';
 import tronWebPromise from '../config/tron.js';
 
 const USDT_CONTRACT = 'TXLAQ63Xg1NAzckPwKHvzw7CSEmLMEqcdj';
