@@ -7,7 +7,8 @@ const WalletSchema = new mongoose.Schema({
   ttl: { type: Date, required: true },
   createdAt: { type: Date, default: Date.now },
   status: { type: String, default: 'pending' },
-  usdtReceived: { type: Number, default: 0 }
+  usdtReceived: { type: Number, default: 0 },
+  expectedAmount: { type: Number, required: true } 
 });
 
 const Wallet = mongoose.model('Wallet', WalletSchema);

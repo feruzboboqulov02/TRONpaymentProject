@@ -16,21 +16,30 @@ async function checkWalletsForPayments() {
       const transactions = await tronWeb.trx.getTransactionsRelated(wallet.address, 'to');
 
       for (const tx of transactions) {
-        // 1️⃣ Проверяем успешную транзакцию
+        // 1️ Проверяем успешную транзакцию
         if (!tx.ret || tx.ret[0].contractRet !== 'SUCCESS') continue;
 
-        // 2️⃣ Ищем вызов смарт-контракта
+        // 2️ Ищем вызов смарт-контракта
         const contractData = tx.raw_data?.contract[0];
         if (!contractData || contractData.type !== 'TriggerSmartContract') continue;
 
-        // 3️⃣ Проверяем, что это USDT контракт
+        // 3️ Проверяем, что это USDT контракт
         const value = contractData.parameter.value;
         if (value.contract_address?.toUpperCase() !== USDT_CONTRACT.toUpperCase()) continue;
 
-        // 4️⃣ Конвертируем сумму в USDT
+        // 4️Конвертируем сумму в USDT
         const amount = Number(value.amount) / 1_000_000;
 
-        // 5️⃣ Помечаем как оплаченный
+        if (amount >= wallet.expectedAmount) {
+            console.log(`Оплата ${amount} USDT для ${wallet.address}`);
+            wallet.status = 'paid';
+            wallet.usdtReceived = amount;
+            await wallet.save();
+        } else {
+            console.log(`Поступил платеж ${amount} USDT для ${wallet.address}, но требуется ${wallet.expectedAmount}`);
+        }
+
+        // 5Помечаем как оплаченный
         console.log(`Оплата ${amount} USDT для ${wallet.address}`);
         wallet.status = 'paid';
         wallet.usdtReceived = amount;

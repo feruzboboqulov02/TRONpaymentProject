@@ -6,8 +6,9 @@ const router = express.Router();
 
 router.post('/create', async (req, res) => {
   try {
-    const { orderId, ttlMinutes = 60 } = req.body;
+    const { orderId, ttlMinutes = 60, amount } = req.body;
     if (!orderId) return res.status(400).json({ error: 'orderId is required' });
+    if (!amount || amount <= 0) return res.status(400).json({ error: 'amount is required and must be > 0' });
 
     const walletData = await generateWallet();
     const ttl = new Date(Date.now() + ttlMinutes * 60000);
@@ -16,20 +17,17 @@ router.post('/create', async (req, res) => {
       orderId,
       address: walletData.address,
       privateKey: walletData.privateKey,
-      ttl
+      ttl,
+      expectedAmount: amount  // 🔹 Сохраняем ожидаемую сумму
     });
 
-    res.json({
-      orderId: wallet.orderId,
-      paymentAddress: wallet.address,
-      message: 'Send USDT (TRC-20) to this address',
-      ttl: wallet.ttl
-    });
+    res.json({ success: true, wallet });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to create wallet' });
   }
 });
+
 
 
 router.get('/status/:orderId', async (req, res) => {
